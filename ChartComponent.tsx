@@ -51,6 +51,7 @@ const ChartComponent = React.memo(({ data, threshold, hideTooltipInPdf = false }
     return {
       responsive: true,
       maintainAspectRatio: false,
+      devicePixelRatio: hideTooltipInPdf ? 4 : (typeof window !== 'undefined' ? window.devicePixelRatio : 2),
       animation: false as const,
       plugins: {
         legend: {

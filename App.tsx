@@ -248,7 +248,7 @@ function App() {
     setIsGeneratingPDF(true);
     setProgressText('Initializing...');
 
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -297,7 +297,7 @@ function App() {
         setProgressText(`Processing graph ${i + 1} of ${allParamsAnalysis.length}...`);
         
         // Wait a tiny frame to allow DOM rendering state sync if needed
-        await new Promise(resolve => setTimeout(resolve, 30));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         const chartEl = document.querySelector(`[data-parameter="${parameter}"]`) as HTMLElement | null;
         if (!chartEl) continue;
