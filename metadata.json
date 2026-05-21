@@ -1,0 +1,6 @@
+{
+  "name": "SRC_Comparision",
+  "description": "A specialized hematology data analysis tool for comparing sample variations against baseline controls with customizable thresholds and automated reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
