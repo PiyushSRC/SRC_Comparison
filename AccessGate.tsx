@@ -7,6 +7,7 @@ const REVALIDATE_MS = 15 * 60 * 1000;
 const STORAGE_KEY = "src_access_token";
 
 type Props = {
+  /** SRC tool slug — drives the approval-page redirect target. */
   toolSlug: string;
   children: React.ReactNode;
 };
@@ -22,10 +23,9 @@ function readToken(): { token: string; fromUrl: boolean } | null {
   return null;
 }
 
-function redirectToApproval(slug: string, reason: string): never {
+function redirectToApproval(slug: string, reason: string): void {
   const dest = `${SITE_ORIGIN}/lab-tools/${slug}?error=${encodeURIComponent(reason)}`;
   window.location.replace(dest);
-  throw new Error("redirecting");
 }
 
 async function validate(token: string): Promise<{ valid: boolean; reason?: string }> {
@@ -49,26 +49,34 @@ export default function AccessGate({ toolSlug, children }: Props) {
 
     (async () => {
       const t = readToken();
-      if (!t) redirectToApproval(toolSlug, "missing");
+      if (!t) {
+        redirectToApproval(toolSlug, "missing");
+        return;
+      }
 
-      const result = await validate(t!.token);
+      const result = await validate(t.token);
       if (cancelled) return;
 
       if (!result.valid) {
         sessionStorage.removeItem(STORAGE_KEY);
         redirectToApproval(toolSlug, result.reason || "invalid");
+        return;
       }
 
-      sessionStorage.setItem(STORAGE_KEY, t!.token);
+      sessionStorage.setItem(STORAGE_KEY, t.token);
 
-      if (t!.fromUrl) {
+      if (t.fromUrl) {
         const url = new URL(window.location.href);
         url.searchParams.delete("access");
         window.history.replaceState({}, "", url.toString());
       }
 
       setStatus("ok");
-    })();
+    })().catch((err) => {
+      // Defensive: surface any unexpected error instead of an unhandled promise.
+      console.error("[AccessGate] init failed", err);
+      redirectToApproval(toolSlug, "error");
+    });
 
     return () => {
       cancelled = true;
@@ -77,14 +85,19 @@ export default function AccessGate({ toolSlug, children }: Props) {
 
   useEffect(() => {
     if (status !== "ok") return;
-    const interval = window.setInterval(async () => {
-      const stored = sessionStorage.getItem(STORAGE_KEY);
-      if (!stored) redirectToApproval(toolSlug, "missing");
-      const result = await validate(stored!);
-      if (!result.valid) {
-        sessionStorage.removeItem(STORAGE_KEY);
-        redirectToApproval(toolSlug, result.reason || "invalid");
-      }
+    const interval = window.setInterval(() => {
+      (async () => {
+        const stored = sessionStorage.getItem(STORAGE_KEY);
+        if (!stored) {
+          redirectToApproval(toolSlug, "missing");
+          return;
+        }
+        const result = await validate(stored);
+        if (!result.valid) {
+          sessionStorage.removeItem(STORAGE_KEY);
+          redirectToApproval(toolSlug, result.reason || "invalid");
+        }
+      })().catch((err) => console.error("[AccessGate] revalidate failed", err));
     }, REVALIDATE_MS);
     return () => window.clearInterval(interval);
   }, [status, toolSlug]);
